@@ -1,0 +1,107 @@
+# Importing necessary libraries
+import tensorflow as tf  # TensorFlow for deep learning
+from tensorflow.keras import layers, models  # Keras modules for creating layers and the model
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # For image augmentation
+from sklearn.model_selection import train_test_split  # For splitting dataset
+import numpy as np
+import matplotlib.pyplot as plt  # For plotting training history (accuracy and loss)
+
+# Loading the dataset (Assume you have preprocessed images)
+# Example: data should be loaded as a NumPy array or image generator.
+# X_data, y_data = load_images_and_labels()
+
+# Normalize the data to the range 0-1 (important for CNNs)
+X_data = X_data / 255.0  # Normalize pixel values from [0, 255] to [0, 1]
+
+# Split data into training and testing sets (80% for training, 20% for testing)
+X_train, X_test, y_train, y_test = train_test_split(X_data, y_data, test_size=0.2, random_state=42)
+
+# Data Augmentation to increase diversity and prevent overfitting
+train_datagen = ImageDataGenerator(
+    rescale=1./255,  # Normalize images
+    rotation_range=40,  # Random rotations up to 40 degrees
+    width_shift_range=0.2,  # Random shifts in width (20%)
+    height_shift_range=0.2,  # Random shifts in height (20%)
+    shear_range=0.2,  # Random shear transformations
+    zoom_range=0.2,  # Random zoom
+    horizontal_flip=True,  # Random horizontal flip
+    fill_mode='nearest'  # Fill empty pixels after transformations
+)
+
+# Validation data augmentation (usually only rescaling)
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+# Creating data generators for training and validation
+train_generator = train_datagen.flow(X_train, y_train, batch_size=32)  # For training data
+validation_generator = test_datagen.flow(X_test, y_test, batch_size=32)  # For validation data
+
+# Define the CNN model
+model = models.Sequential()
+
+# First convolutional layer (feature extraction)
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)))  # 32 filters, 3x3 kernel, ReLU activation
+model.add(layers.MaxPooling2D((2, 2)))  # Max pooling layer to reduce spatial dimensions
+
+# Second convolutional layer
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))  # 64 filters, 3x3 kernel, ReLU activation
+model.add(layers.MaxPooling2D((2, 2)))  # Max pooling to reduce dimensions further
+
+# Third convolutional layer
+model.add(layers.Conv2D(128, (3, 3), activation='relu'))  # 128 filters, 3x3 kernel, ReLU activation
+model.add(layers.MaxPooling2D((2, 2)))  # Max pooling layer
+
+# Flatten the feature maps into a 1D vector to pass it to the fully connected layers
+model.add(layers.Flatten())
+
+# Fully connected (Dense) layer
+model.add(layers.Dense(128, activation='relu'))  # Dense layer with 128 neurons, ReLU activation
+
+# Output layer (softmax for multi-class classification)
+model.add(layers.Dense(4, activation='softmax'))  # 4 output classes (for the 4 diseases)
+
+# Compile the model (Choose loss function and optimizer)
+model.compile(optimizer='adam',  # Adam optimizer is adaptive and widely used
+              loss='categorical_crossentropy',  # Loss function for multi-class classification
+              metrics=['accuracy'])  # We care about accuracy as a metric
+
+# Model Summary (to show the architecture)
+model.summary()
+
+# Train the model
+history = model.fit(
+    train_generator,  # Training data
+    steps_per_epoch=200,  # Number of steps per epoch (usually #samples // batch_size)
+    epochs=10,  # Number of epochs
+    validation_data=validation_generator,  # Validation data
+    validation_steps=50  # Number of steps per validation
+)
+
+# Plotting the training and validation accuracy/loss
+# Accuracy plot
+plt.plot(history.history['accuracy'], label='Training Accuracy')  # Plot training accuracy
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')  # Plot validation accuracy
+plt.title('Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+# Loss plot
+plt.plot(history.history['loss'], label='Training Loss')  # Plot training loss
+plt.plot(history.history['val_loss'], label='Validation Loss')  # Plot validation loss
+plt.title('Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+# Evaluate the model on the test data
+test_loss, test_acc = model.evaluate(X_test, y_test)  # Evaluate the test dataset
+print(f'Test accuracy: {test_acc}')
+print(f'Test loss: {test_loss}')
+
+# Making predictions on new data (example)
+# Assuming X_new is a new image to predict
+# X_new = preprocess_image(new_image)
+# predictions = model.predict(X_new)
+# print(predictions)
